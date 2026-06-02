@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ActionItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ReminderStatus {
+  SENT
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  meetings     Meeting[]
+}
+
+model Meeting {
+  id           String   @id @default(cuid())
+  title        String
+  meetingDate  DateTime
+  participants String[]
+
+  createdById  String
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdBy          User                @relation(fields: [createdById], references: [id])
+  transcriptSegments TranscriptSegment[]
+  analysis           MeetingAnalysis?
+  actionItems        ActionItem[]
+
+  @@index([createdById])
+  @@index([meetingDate])
+}
+
+model TranscriptSegment {
+  id         String @id @default(cuid())
+  meetingId  String
+  timestamp  String
+  speaker    String
+  text       String
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([meetingId, timestamp])
+}
+
+model MeetingAnalysis {
+  id         String   @id @default(cuid())
+  meetingId  String   @unique
+
+  summary    Json
+  decisions  Json
+  followUps  Json
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model ActionItem {
+  id         String           @id @default(cuid())
+  meetingId  String
+
+  task       String
+  assignee   String?
+
+  status     ActionItemStatus @default(PENDING)
+
+  dueDate    DateTime?
+  citations  Json
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  reminderHistory ReminderHistory[]
+
+  @@index([meetingId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model ReminderHistory {
+  id            String         @id @default(cuid())
+  actionItemId  String
+
+  sentAt        DateTime       @default(now())
+  provider      String
+  status        ReminderStatus
+
+  errorMessage  String?
+
+  actionItem    ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+
+  @@index([actionItemId])
+  @@index([sentAt])
+  
+}
