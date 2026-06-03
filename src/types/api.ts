@@ -19,7 +19,5 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 // Convenience type for Next.js route handlers that return paginated data
 export type PaginatedData<T> = {
   items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
+  nextCursor:string | null
 };

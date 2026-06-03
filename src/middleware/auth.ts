@@ -12,16 +12,18 @@ export type AuthedHandler = (
 export function withAuth(handler: AuthedHandler) {
   return async (
     req: NextRequest,
-    { params }: { params?: Record<string, string> } = {}
+    { params }: { params?: Promise<Record<string, string>> } = {}
   ): Promise<NextResponse> => {
     const traceId = getTraceId(req);
     try {
       const token = extractBearerToken(req.headers.get("Authorization"));
       const payload = verifyToken(token);
-
       const authCtx: AuthContext = {
         userId: payload.sub,
       };
+
+      // Await params — Next.js 15 passes dynamic route params as a Promise
+      const resolvedParams = params ? await params : undefined;
 
       // Inject userId into headers for downstream handlers
       const mutatedHeaders = new Headers(req.headers);
@@ -33,7 +35,7 @@ export function withAuth(handler: AuthedHandler) {
         body: req.body,
       });
 
-      return handler(mutatedReq, authCtx, params);
+      return handler(mutatedReq, authCtx, resolvedParams);
     } catch (err) {
       return errorResponse(err, traceId);
     }
