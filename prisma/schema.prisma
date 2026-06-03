@@ -25,6 +25,7 @@ enum ReminderStatus {
 
 model User {
   id           String   @id @default(cuid())
+  name         String
   email        String   @unique
   passwordHash String
 
@@ -119,5 +120,5 @@ model ReminderHistory {
 
   @@index([actionItemId])
   @@index([sentAt])
-  
+
 }
