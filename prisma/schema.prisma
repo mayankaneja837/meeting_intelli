@@ -75,6 +75,7 @@ model MeetingAnalysis {
   summary    Json
   decisions  Json
   followUps  Json
+  transcriptHash String @map("TranscriptHash")
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -83,28 +84,24 @@ model MeetingAnalysis {
 }
 
 model ActionItem {
-  id         String           @id @default(cuid())
-  meetingId  String
+  id               String           @id @default(cuid())
+  meetingId        String
+  task             String
+  assignee         String           
+  speakerTimestamp String           
+  status           ActionItemStatus @default(PENDING)
+  dueDate          DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  task       String
-  assignee   String?
-
-  status     ActionItemStatus @default(PENDING)
-
-  dueDate    DateTime?
-  citations  Json
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-
+  meeting         Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   reminderHistory ReminderHistory[]
 
   @@index([meetingId])
   @@index([status])
   @@index([dueDate])
 }
+
 
 model ReminderHistory {
   id            String         @id @default(cuid())
