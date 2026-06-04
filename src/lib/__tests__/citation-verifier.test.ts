@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { verifyCitations } from "./citation-verifier";
+import { verifyCitations } from "../citation-verifier";
 
 describe("verifyCitations", () => {
   test("keeps action items whose timestamp exists in the transcript", () => {

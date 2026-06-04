@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hashTranscript } from "./transcript-hash";
+import { hashTranscript } from "../transcript-hash";
 
 describe("hashTranscript", () => {
   test("returns the same hash for the same transcript regardless of input order", () => {

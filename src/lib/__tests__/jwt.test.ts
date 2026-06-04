@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { UnauthorizedError } from "@/types/errors";
-import { extractBearerToken, signToken, verifyToken } from "./jwt";
+import { extractBearerToken, signToken, verifyToken } from "../jwt";
 
 const originalJwtSecret = process.env.JWT_SECRET;
 

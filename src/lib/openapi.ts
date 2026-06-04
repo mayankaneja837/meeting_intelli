@@ -13,10 +13,12 @@ export const openApiSpec = {
     },
   ],
   tags: [
+    { name: "System" },
     { name: "Auth" },
     { name: "Meetings" },
     { name: "Action Items" },
     { name: "Cron" },
+    { name: "Evaluation" },
     { name: "Docs" },
   ],
   components: {
@@ -485,9 +487,62 @@ export const openApiSpec = {
           },
         },
       },
+      HealthResponse: {
+        type: "object",
+        required: ["status"],
+        properties: {
+          status: { type: "string", enum: ["UP"] },
+        },
+      },
+      EvaluationResponse: {
+        type: "object",
+        required: [
+          "candidateName",
+          "email",
+          "repositoryUrl",
+          "deployedUrl",
+          "externalIntegration",
+          "features",
+        ],
+        properties: {
+          candidateName: { type: "string", example: "Mayank Aneja" },
+          email: { type: "string", format: "email", example: "mayank@mayankaneja.dev" },
+          repositoryUrl: {
+            type: "string",
+            format: "uri",
+            example: "https://github.com/mayankaneja837/meeting_intelli",
+          },
+          deployedUrl: {
+            type: "string",
+            format: "uri",
+            example: "https://meeting-intelli.vercel.app",
+          },
+          externalIntegration: { type: "string", example: "Resend" },
+          features: {
+            type: "array",
+            items: { type: "string" },
+          },
+        },
+      },
     },
   },
   paths: {
+    "/health": {
+      get: {
+        tags: ["System"],
+        summary: "Health check",
+        responses: {
+          "200": {
+            description: "Service is up",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/HealthResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
     "/api/auth/register": {
       post: {
         tags: ["Auth"],
@@ -962,6 +1017,24 @@ export const openApiSpec = {
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/evaluation": {
+      get: {
+        tags: ["Evaluation"],
+        summary: "Assignment evaluation metadata",
+        description:
+          "Public endpoint used by assignment evaluators to inspect candidate, deployment, integration, and feature metadata.",
+        responses: {
+          "200": {
+            description: "Evaluation metadata",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/EvaluationResponse" },
               },
             },
           },

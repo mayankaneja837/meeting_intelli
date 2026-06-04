@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { comparePassword, hashPassword } from "./password";
+import { comparePassword, hashPassword } from "../password";
 
 describe("password helpers", () => {
   test("hashes and verifies passwords", async () => {

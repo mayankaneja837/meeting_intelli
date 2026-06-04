@@ -4,7 +4,7 @@ import {
   ListMeetingsQuerySchema,
   UpdateMeetingSchema,
   UploadTranscriptSchema,
-} from "./meetings";
+} from "../../types/meetings";
 
 describe("meeting validation schemas", () => {
   test("validates a minimal create meeting payload and defaults participants", () => {

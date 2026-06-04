@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { openApiSpec } from "./openapi";
+import { openApiSpec } from "../openapi";
 
 describe("openApiSpec", () => {
   test("documents the actual meeting PATCH endpoint", () => {

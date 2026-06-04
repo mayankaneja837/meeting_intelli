@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ActionItemStatus } from "@/generated/prisma/client";
-import { isOverdue, isValidActionItemStatusTransition } from "./action-items";
+import { isOverdue, isValidActionItemStatusTransition } from "../action-items";
 
 describe("isOverdue", () => {
   const asOf = new Date("2026-06-05T09:00:00.000Z");
