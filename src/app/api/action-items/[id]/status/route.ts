@@ -16,9 +16,11 @@ const VALID_TRANSITIONS: Record<ActionItemStatus, ActionItemStatus[]> = {
   [ActionItemStatus.COMPLETED]: [ActionItemStatus.IN_PROGRESS], // allow reopening
 };
 
-const patchSchema = z.object({
-  status: z.enum(ActionItemStatus),
-});
+const patchSchema = z
+  .object({
+    status: z.enum(ActionItemStatus),
+  })
+  .strict();
 
 // PATCH /api/action-items/[id]
 // Body: { status: "PENDING" | "IN_PROGRESS" | "COMPLETED" }

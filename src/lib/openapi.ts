@@ -4,7 +4,7 @@ export const openApiSpec = {
     title: "Meeting Intelli API",
     version: "0.1.0",
     description:
-      "Meeting intelligence API for authentication, meeting management, AI analysis, action items, overdue detection, and reminder cron jobs.",
+      "Meeting intelligence API for authentication, meeting management, AI analysis, action items, overdue detection, and reminder jobs.",
   },
   servers: [
     {
@@ -35,9 +35,9 @@ export const openApiSpec = {
     schemas: {
       ErrorResponse: {
         type: "object",
-        required: ["success", "error", "traceId"],
+        required: ["success", "traceId", "error"],
         properties: {
-          success: { type: "boolean", example: false },
+          success: { type: "boolean", enum: [false] },
           traceId: { type: "string", example: "abc123" },
           error: {
             type: "object",
@@ -45,13 +45,14 @@ export const openApiSpec = {
             properties: {
               code: { type: "string", example: "VALIDATION_ERROR" },
               message: { type: "string", example: "Meeting title is required" },
-              details: {},
+              details: { type: "object", nullable: true, additionalProperties: true },
             },
           },
         },
       },
       User: {
         type: "object",
+        required: ["id", "name", "email", "createdAt"],
         properties: {
           id: { type: "string" },
           name: { type: "string" },
@@ -60,8 +61,21 @@ export const openApiSpec = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      CurrentUser: {
+        allOf: [
+          { $ref: "#/components/schemas/User" },
+          {
+            type: "object",
+            required: ["meetingCount"],
+            properties: {
+              meetingCount: { type: "integer", minimum: 0 },
+            },
+          },
+        ],
+      },
       Meeting: {
         type: "object",
+        required: ["id", "title", "meetingDate", "participants", "createdAt", "updatedAt"],
         properties: {
           id: { type: "string" },
           title: { type: "string" },
@@ -74,6 +88,34 @@ export const openApiSpec = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      MeetingListItem: {
+        allOf: [
+          { $ref: "#/components/schemas/Meeting" },
+          {
+            type: "object",
+            required: ["_count"],
+            properties: {
+              _count: {
+                type: "object",
+                required: ["transcriptSegments", "actionItems"],
+                properties: {
+                  transcriptSegments: { type: "integer", minimum: 0 },
+                  actionItems: { type: "integer", minimum: 0 },
+                },
+              },
+            },
+          },
+        ],
+      },
+      TranscriptSegment: {
+        type: "object",
+        required: ["speaker", "text", "timestamp"],
+        properties: {
+          speaker: { type: "string", example: "Alice" },
+          text: { type: "string", example: "I will prepare release notes." },
+          timestamp: { type: "string", example: "00:00:20" },
+        },
+      },
       TranscriptSegmentInput: {
         type: "object",
         required: ["speaker", "text", "timestamp"],
@@ -81,6 +123,78 @@ export const openApiSpec = {
           speaker: { type: "string", example: "Alice" },
           text: { type: "string", example: "I will prepare release notes." },
           timestamp: { type: "string", example: "00:00:20" },
+        },
+      },
+      MeetingAnalysis: {
+        type: "object",
+        required: ["summary", "decisions", "followUps", "transcriptHash", "createdAt", "updatedAt"],
+        properties: {
+          id: { type: "string" },
+          meetingId: { type: "string" },
+          summary: {
+            type: "array",
+            items: { type: "string" },
+          },
+          decisions: {
+            type: "array",
+            items: { type: "string" },
+          },
+          followUps: {
+            type: "array",
+            items: { type: "string" },
+          },
+          transcriptHash: { type: "string" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      ActionItem: {
+        type: "object",
+        required: [
+          "id",
+          "meetingId",
+          "task",
+          "assignee",
+          "speakerTimestamp",
+          "dueDate",
+          "status",
+          "createdAt",
+          "updatedAt",
+        ],
+        properties: {
+          id: { type: "string" },
+          meetingId: { type: "string" },
+          task: { type: "string" },
+          assignee: { type: "string" },
+          speakerTimestamp: { type: "string", example: "00:00:20" },
+          dueDate: { type: "string", format: "date-time", nullable: true },
+          status: {
+            type: "string",
+            enum: ["PENDING", "IN_PROGRESS", "COMPLETED"],
+          },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      OverdueActionItem: {
+        allOf: [
+          { $ref: "#/components/schemas/ActionItem" },
+          {
+            type: "object",
+            required: ["daysOverdue"],
+            properties: {
+              daysOverdue: { type: "integer", nullable: true },
+            },
+          },
+        ],
+      },
+      ReminderHistory: {
+        type: "object",
+        required: ["id", "actionItemId", "sentAt"],
+        properties: {
+          id: { type: "string" },
+          actionItemId: { type: "string" },
+          sentAt: { type: "string", format: "date-time" },
         },
       },
       CreateMeetingRequest: {
@@ -102,6 +216,7 @@ export const openApiSpec = {
       },
       UpdateMeetingRequest: {
         type: "object",
+        minProperties: 1,
         properties: {
           title: { type: "string" },
           meetingDate: { type: "string", format: "date-time" },
@@ -117,30 +232,16 @@ export const openApiSpec = {
         properties: {
           segments: {
             type: "array",
+            minItems: 1,
+            maxItems: 5000,
             items: { $ref: "#/components/schemas/TranscriptSegmentInput" },
           },
-        },
-      },
-      ActionItem: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          meetingId: { type: "string" },
-          task: { type: "string" },
-          assignee: { type: "string" },
-          speakerTimestamp: { type: "string" },
-          dueDate: { type: "string", format: "date-time", nullable: true },
-          status: {
-            type: "string",
-            enum: ["PENDING", "IN_PROGRESS", "COMPLETED"],
-          },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
         },
       },
       UpdateActionItemStatusRequest: {
         type: "object",
         required: ["status"],
+        additionalProperties: false,
         properties: {
           status: {
             type: "string",
@@ -154,7 +255,7 @@ export const openApiSpec = {
         properties: {
           name: { type: "string", example: "Mayank Aneja" },
           email: { type: "string", format: "email", example: "mayank@example.com" },
-          password: { type: "string", minLength: 8, example: "password123" },
+          password: { type: "string", minLength: 8, maxLength: 128, example: "password123" },
         },
       },
       LoginRequest: {
@@ -165,16 +266,221 @@ export const openApiSpec = {
           password: { type: "string", example: "password123" },
         },
       },
-      AuthResponse: {
+      ApiSuccessAuth: {
         type: "object",
+        required: ["success", "traceId", "data"],
         properties: {
-          success: { type: "boolean", example: true },
+          success: { type: "boolean", enum: [true] },
           traceId: { type: "string" },
           data: {
             type: "object",
+            required: ["user", "token"],
             properties: {
               user: { $ref: "#/components/schemas/User" },
               token: { type: "string" },
+            },
+          },
+        },
+      },
+      ApiSuccessCurrentUser: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: { $ref: "#/components/schemas/CurrentUser" },
+        },
+      },
+      ApiSuccessMeeting: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: { $ref: "#/components/schemas/Meeting" },
+        },
+      },
+      ApiSuccessMeetingDetails: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            allOf: [
+              { $ref: "#/components/schemas/Meeting" },
+              {
+                type: "object",
+                properties: {
+                  transcriptSegments: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/TranscriptSegment" },
+                  },
+                  analysis: {
+                    oneOf: [
+                      { $ref: "#/components/schemas/MeetingAnalysis" },
+                      { type: "null" },
+                    ],
+                  },
+                  actionItems: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/ActionItem" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      ApiSuccessMeetingList: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            type: "object",
+            required: ["items", "nextCursor"],
+            properties: {
+              items: {
+                type: "array",
+                items: { $ref: "#/components/schemas/MeetingListItem" },
+              },
+              nextCursor: { type: "string", nullable: true },
+            },
+          },
+        },
+      },
+      ApiSuccessDeleteMeeting: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            type: "object",
+            required: ["id", "deleted"],
+            properties: {
+              id: { type: "string" },
+              deleted: { type: "boolean", enum: [true] },
+            },
+          },
+        },
+      },
+      ApiSuccessTranscriptUpload: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            type: "object",
+            required: ["meetingId", "inserted", "message"],
+            properties: {
+              meetingId: { type: "string" },
+              inserted: { type: "integer", minimum: 0 },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+      AnalyzeMeetingData: {
+        type: "object",
+        required: ["analysis", "actionItems", "meta"],
+        properties: {
+          analysis: { $ref: "#/components/schemas/MeetingAnalysis" },
+          actionItems: {
+            type: "array",
+            items: { $ref: "#/components/schemas/ActionItem" },
+          },
+          meta: {
+            type: "object",
+            required: [
+              "transcriptSegmentsProcessed",
+              "actionItemsExtracted",
+              "actionItemsDropped",
+              "droppedReason",
+              "cached",
+            ],
+            properties: {
+              transcriptSegmentsProcessed: { type: "integer", minimum: 0 },
+              actionItemsExtracted: { type: "integer", minimum: 0 },
+              actionItemsDropped: { type: "integer", minimum: 0 },
+              droppedReason: { type: "string", nullable: true },
+              cached: { type: "boolean" },
+            },
+          },
+        },
+      },
+      ApiSuccessAnalyzeMeeting: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: { $ref: "#/components/schemas/AnalyzeMeetingData" },
+        },
+      },
+      ApiSuccessActionItemList: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            type: "object",
+            required: ["items", "nextCursor"],
+            properties: {
+              items: {
+                type: "array",
+                items: { $ref: "#/components/schemas/ActionItem" },
+              },
+              nextCursor: { type: "string", nullable: true },
+            },
+          },
+        },
+      },
+      ApiSuccessOverdueActionItemList: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            type: "object",
+            required: ["items", "nextCursor", "asOf"],
+            properties: {
+              items: {
+                type: "array",
+                items: { $ref: "#/components/schemas/OverdueActionItem" },
+              },
+              nextCursor: { type: "string", nullable: true },
+              asOf: { type: "string", format: "date-time" },
+            },
+          },
+        },
+      },
+      ApiSuccessActionItem: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: { $ref: "#/components/schemas/ActionItem" },
+        },
+      },
+      ApiSuccessCronReminderResult: {
+        type: "object",
+        required: ["success", "traceId", "data"],
+        properties: {
+          success: { type: "boolean", enum: [true] },
+          traceId: { type: "string" },
+          data: {
+            type: "object",
+            required: ["processed", "reminded"],
+            properties: {
+              processed: { type: "integer", minimum: 0 },
+              reminded: { type: "integer", minimum: 0 },
             },
           },
         },
@@ -199,12 +505,26 @@ export const openApiSpec = {
             description: "Registered user and JWT token",
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/AuthResponse" },
+                schema: { $ref: "#/components/schemas/ApiSuccessAuth" },
               },
             },
           },
-          "400": { description: "Validation error" },
-          "409": { description: "Email already exists" },
+          "400": {
+            description: "Validation error",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "409": {
+            description: "Email already exists",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -225,11 +545,18 @@ export const openApiSpec = {
             description: "Authenticated user and JWT token",
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/AuthResponse" },
+                schema: { $ref: "#/components/schemas/ApiSuccessAuth" },
               },
             },
           },
-          "401": { description: "Invalid credentials" },
+          "401": {
+            description: "Invalid credentials",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -239,27 +566,26 @@ export const openApiSpec = {
         summary: "Get current authenticated user",
         security: [{ bearerAuth: [] }],
         responses: {
-          "200": { description: "Current user profile" },
-          "401": { description: "Unauthorized" },
+          "200": {
+            description: "Current user profile",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessCurrentUser" },
+              },
+            },
+          },
+          "401": {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
     "/api/meetings": {
-      get: {
-        tags: ["Meetings"],
-        summary: "List meetings",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          { name: "cursor", in: "query", schema: { type: "string" } },
-          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
-          { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
-          { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
-        ],
-        responses: {
-          "200": { description: "Paginated meeting list" },
-          "401": { description: "Unauthorized" },
-        },
-      },
       post: {
         tags: ["Meetings"],
         summary: "Create a meeting",
@@ -273,9 +599,59 @@ export const openApiSpec = {
           },
         },
         responses: {
-          "201": { description: "Created meeting" },
-          "400": { description: "Validation error" },
-          "401": { description: "Unauthorized" },
+          "201": {
+            description: "Created meeting",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessMeeting" },
+              },
+            },
+          },
+          "400": {
+            description: "Validation error",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+      get: {
+        tags: ["Meetings"],
+        summary: "List meetings",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "cursor", in: "query", schema: { type: "string" } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+          { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+        ],
+        responses: {
+          "200": {
+            description: "Paginated meeting list",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessMeetingList" },
+              },
+            },
+          },
+          "401": {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -286,8 +662,22 @@ export const openApiSpec = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: {
-          "200": { description: "Meeting details" },
-          "404": { description: "Meeting not found" },
+          "200": {
+            description: "Meeting details",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessMeetingDetails" },
+              },
+            },
+          },
+          "404": {
+            description: "Meeting not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
       patch: {
@@ -304,8 +694,30 @@ export const openApiSpec = {
           },
         },
         responses: {
-          "200": { description: "Updated meeting" },
-          "404": { description: "Meeting not found" },
+          "200": {
+            description: "Updated meeting",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessMeeting" },
+              },
+            },
+          },
+          "400": {
+            description: "Validation error",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "404": {
+            description: "Meeting not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
       delete: {
@@ -314,8 +726,22 @@ export const openApiSpec = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: {
-          "200": { description: "Deleted meeting" },
-          "404": { description: "Meeting not found" },
+          "200": {
+            description: "Deleted meeting",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessDeleteMeeting" },
+              },
+            },
+          },
+          "404": {
+            description: "Meeting not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -334,8 +760,22 @@ export const openApiSpec = {
           },
         },
         responses: {
-          "201": { description: "Transcript processed" },
-          "404": { description: "Meeting not found" },
+          "201": {
+            description: "Transcript processed",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessTranscriptUpload" },
+              },
+            },
+          },
+          "404": {
+            description: "Meeting not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -343,13 +783,51 @@ export const openApiSpec = {
       post: {
         tags: ["Meetings"],
         summary: "Run AI analysis for a meeting",
+        description:
+          "Runs Groq-powered meeting analysis. If the transcript hash matches an existing analysis, a cached result is returned with HTTP 200; otherwise a fresh analysis is generated with HTTP 201.",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: {
-          "200": { description: "Cached analysis returned" },
-          "201": { description: "Analysis generated" },
-          "404": { description: "Meeting not found" },
-          "422": { description: "Meeting has no transcript" },
+          "200": {
+            description: "Cached analysis returned",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessAnalyzeMeeting" },
+              },
+            },
+          },
+          "201": {
+            description: "Fresh analysis generated",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessAnalyzeMeeting" },
+              },
+            },
+          },
+          "404": {
+            description: "Meeting not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "422": {
+            description: "No transcript uploaded yet",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "429": {
+            description: "Rate limit exceeded. Per-user limit is 10/hour; per-meeting limit is 3/hour.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -357,6 +835,7 @@ export const openApiSpec = {
       get: {
         tags: ["Action Items"],
         summary: "List action items",
+        description: "Returns action items scoped to the authenticated user's meetings.",
         security: [{ bearerAuth: [] }],
         parameters: [
           {
@@ -369,23 +848,52 @@ export const openApiSpec = {
           { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
         ],
         responses: {
-          "200": { description: "Paginated action item list" },
-          "401": { description: "Unauthorized" },
+          "200": {
+            description: "Paginated action item list",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessActionItemList" },
+              },
+            },
+          },
+          "401": {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
     "/api/action-items/overdue": {
       get: {
         tags: ["Action Items"],
-        summary: "List overdue action items for the authenticated user",
+        summary: "List overdue action items",
+        description: "Returns overdue action items scoped to the authenticated user's meetings.",
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: "cursor", in: "query", schema: { type: "string" } },
           { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
         ],
         responses: {
-          "200": { description: "Paginated overdue action item list" },
-          "401": { description: "Unauthorized" },
+          "200": {
+            description: "Paginated overdue action item list",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessOverdueActionItemList" },
+              },
+            },
+          },
+          "401": {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
@@ -393,6 +901,8 @@ export const openApiSpec = {
       patch: {
         tags: ["Action Items"],
         summary: "Update action item status",
+        description:
+          "Status-only update. The request body only accepts the status field; task, assignee, dueDate, meetingId, and other action item fields are not updated by this endpoint.",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         requestBody: {
@@ -404,20 +914,73 @@ export const openApiSpec = {
           },
         },
         responses: {
-          "200": { description: "Updated action item" },
-          "400": { description: "Invalid status transition" },
-          "404": { description: "Action item not found" },
+          "200": {
+            description: "Updated action item status",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessActionItem" },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid status transition",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "404": {
+            description: "Action item not found",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
         },
       },
     },
     "/api/cron/reminders": {
       get: {
         tags: ["Cron"],
-        summary: "Send overdue action item reminder emails",
+        summary: "Run the scheduled reminder job",
+        description:
+          "Secret-protected cron/background job endpoint. It finds overdue action items, sends reminder emails through Resend, and records reminder history.",
         security: [{ cronSecret: [] }],
         responses: {
-          "200": { description: "Reminder job result" },
-          "401": { description: "Invalid cron authorization" },
+          "200": {
+            description: "Reminder job result",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessCronReminderResult" },
+              },
+            },
+          },
+          "401": {
+            description: "Invalid cron authorization",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/docs": {
+      get: {
+        tags: ["Docs"],
+        summary: "Swagger UI HTML",
+        responses: {
+          "200": {
+            description: "Swagger UI HTML page",
+            content: {
+              "text/html": {
+                schema: { type: "string" },
+              },
+            },
+          },
         },
       },
     },
@@ -426,7 +989,14 @@ export const openApiSpec = {
         tags: ["Docs"],
         summary: "OpenAPI JSON specification",
         responses: {
-          "200": { description: "OpenAPI JSON" },
+          "200": {
+            description: "OpenAPI JSON",
+            content: {
+              "application/json": {
+                schema: { type: "object" },
+              },
+            },
+          },
         },
       },
     },
