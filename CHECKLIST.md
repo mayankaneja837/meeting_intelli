@@ -26,7 +26,7 @@ This checklist tracks the assignment requirements completed in Meeting Intelli.
 ## Bonus Milestones
 
 - [x] Docker support
-- [ ] CI/CD pipeline
+- [x] CI/CD pipeline - Vercel handles this
 - [x] Redis caching
 - [x] Rate limiting
 - [ ] Integration tests

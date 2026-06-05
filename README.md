@@ -85,7 +85,7 @@ RESEND_FROM="Meeting Intelli <reminders@mayankaneja.dev>"
 
 CRON_SECRET="replace-with-a-long-random-secret"
 
-DEPLOYED_URL="https://your-vercel-app.vercel.app"
+DEPLOYED_URL="https://meeting-intelli.vercel.app"
 ```
 
 Notes:
@@ -399,10 +399,10 @@ bunx prisma migrate deploy
 8. Verify these public endpoints:
 
 ```text
-https://your-domain/health
-https://your-domain/api/evaluation
-https://your-domain/api/docs
-https://your-domain/api/docs/openapi.json
+https://meeting-intelli.vercel.app/health
+https://meeting-intelli.vercel.app/api/evaluation
+https://meeting-intelli.vercel.app/api/docs
+https://meeting-intelli.vercel.app/api/docs/openapi.json
 ```
 
 ## Testing

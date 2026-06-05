@@ -8,6 +8,10 @@ export const openApiSpec = {
   },
   servers: [
     {
+      url: "https://meeting-intelli.vercel.app",
+      description: "Production deployment",
+    },
+    {
       url: "/",
       description: "Current deployment",
     },
