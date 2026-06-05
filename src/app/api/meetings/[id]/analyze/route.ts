@@ -76,8 +76,10 @@ async function analyzeHandler(
     // If transcript hasn't changed since last analysis, return cached result.
     // No Groq call, no DB writes — free response.
     const currentHash = hashTranscript(meeting.transcriptSegments);
+    const cacheHit = meeting.analysis?.transcriptHash === currentHash;
+    const cachedAnalysis = cacheHit ? meeting.analysis : null;
 
-    if (meeting.analysis?.transcriptHash === currentHash) {
+    if (cachedAnalysis) {
       const existingActionItems = await prisma.actionItem.findMany({
         where: { meetingId },
         select: {
@@ -94,13 +96,13 @@ async function analyzeHandler(
       return successResponse(
         {
           analysis: {
-            id: meeting.analysis.id,
+            id: cachedAnalysis.id,
             meetingId,
-            summary: meeting.analysis.summary,
-            decisions: meeting.analysis.decisions,
-            followUps: meeting.analysis.followUps,
-            createdAt: meeting.analysis.createdAt,
-            updatedAt: meeting.analysis.updatedAt,
+            summary: cachedAnalysis.summary,
+            decisions: cachedAnalysis.decisions,
+            followUps: cachedAnalysis.followUps,
+            createdAt: cachedAnalysis.createdAt,
+            updatedAt: cachedAnalysis.updatedAt,
           },
           actionItems: existingActionItems,
           meta: {
@@ -108,7 +110,7 @@ async function analyzeHandler(
             actionItemsExtracted: existingActionItems.length,
             actionItemsDropped: 0,
             droppedReason: null,
-            cached: true, // signals to caller that this came from cache
+            cached: cacheHit, // true only when the stored transcript hash matches
           },
         },
         traceId,
