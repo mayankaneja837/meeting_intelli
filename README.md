@@ -360,8 +360,10 @@ The cron route:
 - Requires `Authorization: Bearer <CRON_SECRET>`
 - Finds overdue action items where `dueDate < now` and status is not `COMPLETED`
 - Skips action items that already have a successful reminder history record
-- Sends reminder emails to the meeting creator via Resend
+- Sends reminder emails to the meeting creator/owner via Resend
 - Records `SENT` or `FAILED` reminder history
+
+Important participant-modeling distinction: meeting `participants` and action item `assignee` values are stored as plain strings, not normalized user accounts. Because assignees are not guaranteed to have verified emails in the system, overdue reminder emails go to the user who created the meeting, not directly to the assignee.
 
 ## Redis Caching
 
@@ -435,7 +437,7 @@ https://github.com/mayankaneja837/meeting_intelli
 
 This project implements the Meeting Intelligence Service described in the assignment. Users can register, log in with JWT authentication, create meetings, upload transcript segments, and run AI-powered meeting analysis through Groq. The analysis flow is designed to stay grounded in transcript content: generated action items are checked against real transcript timestamps, and transcript hashing prevents unnecessary repeated analysis when meeting content has not changed.
 
-The application stores meetings, transcript segments, analyses, action items, and reminder history in PostgreSQL through Prisma. Action items can be listed, filtered, marked by status, and queried when overdue. A Vercel Cron-compatible reminder endpoint runs daily, finds overdue incomplete action items, sends reminder emails through Resend, and records the reminder outcome.
+The application stores meetings, transcript segments, analyses, action items, and reminder history in PostgreSQL through Prisma. Action items can be listed, filtered, marked by status, and queried when overdue. A Vercel Cron-compatible reminder endpoint runs daily, finds overdue incomplete action items, sends reminder emails to the meeting creator through Resend, and records the reminder outcome.
 
 The API follows a consistent response shape with `success`, `traceId`, and either `data` or `error`. Public evaluator-facing endpoints are available at `/health`, `/api/evaluation`, `/api/docs`, and `/api/docs/openapi.json`. The project also includes Bun unit tests for auth helpers, validation schemas, transcript hashing, citation verification, OpenAPI correctness, password helpers, and action item utility logic.
 
@@ -445,7 +447,7 @@ A typical evaluator flow starts with user registration. The evaluator calls `POS
 
 The token is then used as `Authorization: Bearer <token>` for protected routes. The evaluator can call `GET /api/auth/me` to confirm authentication and fetch the current user profile.
 
-Next, the evaluator creates a meeting with `POST /api/meetings`. The meeting stores a title, meeting date, participants, and the authenticated user's ID as `createdById`. The evaluator can then call `GET /api/meetings` or `GET /api/meetings/{id}` to confirm the meeting exists.
+Next, the evaluator creates a meeting with `POST /api/meetings`. The meeting stores a title, meeting date, participants, and the authenticated user's ID as `createdById`. Participants are intentionally stored as strings rather than normalized user records. The evaluator can then call `GET /api/meetings` or `GET /api/meetings/{id}` to confirm the meeting exists.
 
 After creating the meeting, the evaluator uploads transcript segments with `POST /api/meetings/{id}/transcript`. Each segment contains a `timestamp`, `speaker`, and `text`. These transcript timestamps become the grounding source for AI-generated insights.
 
@@ -455,6 +457,6 @@ Once analysis is complete, the evaluator can call `GET /api/action-items` to lis
 
 The evaluator can update only an action item's status through `PATCH /api/action-items/{id}/status`. This endpoint accepts only a `status` value and enforces the status transition rules.
 
-Finally, the scheduled reminder workflow is triggered by Vercel Cron through `GET /api/cron/reminders`. The route is protected with `CRON_SECRET`, finds overdue incomplete action items that have not already received a successful reminder, sends an email to the meeting creator through Resend, and writes a `ReminderHistory` record. Locally, the same flow can be tested by calling the cron endpoint manually with the cron bearer token.
+Finally, the scheduled reminder workflow is triggered by Vercel Cron through `GET /api/cron/reminders`. The route is protected with `CRON_SECRET`, finds overdue incomplete action items that have not already received a successful reminder, sends an email to the meeting creator through Resend, and writes a `ReminderHistory` record. It does not email assignees directly because assignees are extracted/stored as strings and are not normalized to verified user accounts. Locally, the same flow can be tested by calling the cron endpoint manually with the cron bearer token.
 
 Public evaluator routes remain accessible without authentication throughout the flow: `/health` verifies the service is up, `/api/evaluation` returns assignment metadata, and `/api/docs` exposes Swagger documentation for all API routes.

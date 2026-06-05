@@ -1005,7 +1005,7 @@ export const openApiSpec = {
         tags: ["Cron"],
         summary: "Run the scheduled reminder job",
         description:
-          "Secret-protected cron/background job endpoint. It finds overdue action items, sends reminder emails through Resend, and records reminder history.",
+          "Secret-protected cron/background job endpoint. It finds overdue action items, sends reminder emails to meeting creators through Resend, and records reminder history. Assignees are stored as strings and are not emailed directly.",
         security: [{ cronSecret: [] }],
         responses: {
           "200": {

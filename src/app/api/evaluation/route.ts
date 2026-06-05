@@ -18,6 +18,8 @@ export function GET() {
       "Unified API Responses",
       "Request Trace IDs",
       "Input Validation",
+      "Docker Support",
+      "Upstash Redis Caching",
     ],
   });
 }

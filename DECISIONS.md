@@ -39,6 +39,8 @@ The schema mirrors the assignment workflow:
 
 This structure keeps ownership clear and makes authorization straightforward. Most user-facing queries can be scoped through `Meeting.createdById`, including action item access and overdue detection.
 
+Meeting participants are intentionally stored as a `String[]` and action item assignees are stored as strings. They are not normalized into user records or verified email identities. Because of this, overdue reminder emails are sent to the meeting creator/owner, not directly to the assignee.
+
 **Key relationships:**
 
 - `User -> Meeting`: one user can create many meetings.
@@ -129,6 +131,8 @@ Meetings are owned by the user who created them. Action items belong to meetings
 **Trade-offs:**
 
 User ownership is simple and secure for the assignment. It does not yet support collaborative workspaces or participant-level permissions, which would be needed in a larger product.
+
+Because participants and assignees are not normalized users, the system cannot safely assume an assignee has a deliverable email address. Reminder delivery therefore targets the meeting owner, who is the authenticated user responsible for the meeting record.
 
 ## Unified API Response Format
 

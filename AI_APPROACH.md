@@ -252,7 +252,9 @@ A stronger version could post-process dates with a deterministic date parser and
 
 ### Speaker and Assignee Matching Is Not Fully Normalized
 
-The model returns assignee names as strings. The system does not currently normalize assignees against participants or users.
+The model returns assignee names as strings. The system does not currently normalize assignees against participants or users, and meeting participants are also stored as plain strings.
+
+This matters for reminders: overdue reminder emails are sent to the meeting creator/owner rather than directly to the assignee, because the assignee string is not guaranteed to map to a verified user email.
 
 A stronger version could match assignees against known participants, emails, or user records.
 

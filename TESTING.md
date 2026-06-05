@@ -138,6 +138,7 @@ These tests verify that the OpenAPI specification reflects the real API surface.
 - Upstash rate limiting behavior is not covered by automated tests because it depends on external Redis state.
 - The tests verify the OpenAPI spec structure, but they do not perform schema contract testing against every live route response.
 - The status transition helper is tested independently. Route-level transition behavior should be covered by future integration tests to ensure the helper and API stay aligned.
+- Participants and assignees are not normalized user records, so tests do not cover direct reminder delivery to assignees. Reminder delivery is intentionally owner-focused: overdue reminder emails go to the meeting creator.
 
 ## Manual Verification Performed
 
@@ -166,4 +167,3 @@ Latest local result:
 23 pass
 0 fail
 ```
-

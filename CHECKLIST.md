@@ -34,6 +34,7 @@ This checklist tracks the assignment requirements completed in Meeting Intelli.
 ## Notes
 
 - The real third-party integration is Resend for reminder email delivery.
+- Reminder emails are delivered to meeting creators/owners. Participants and assignees are stored as strings, not normalized user accounts, so assignees are not emailed directly.
 - Rate limiting is implemented for the meeting analysis endpoint using Upstash Redis.
 - Redis caching is implemented for user-scoped meeting and action item list endpoints using Upstash Redis.
 - Docker support is available through the project `Dockerfile`.
