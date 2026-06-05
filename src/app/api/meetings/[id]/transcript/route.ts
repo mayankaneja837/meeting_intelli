@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withAuth } from "@/middleware/auth";
 import { getTraceId, successResponse, errorResponse } from "@/lib/response";
 import { upsertTranscriptSegments } from "@/lib/meetings";
+import { invalidateMeetingCaches } from "@/lib/cache";
 import { UploadTranscriptSchema } from "@/types/meetings";
 import { NotFoundError, ValidationError } from "@/types/errors";
 import type { AuthContext } from "@/types/auth";
@@ -26,6 +27,8 @@ export const POST = withAuth(
 
       const result = await upsertTranscriptSegments(id, ctx.userId, parsed.data.segments);
       if (!result) throw new NotFoundError("Meeting");
+
+      await invalidateMeetingCaches(ctx.userId);
 
       return successResponse(
         {

@@ -2,6 +2,12 @@ import { NextRequest } from "next/server";
 import { withAuth } from "@/middleware/auth";
 import { getTraceId, successResponse, errorResponse } from "@/lib/response";
 import { createMeeting, listMeetings } from "@/lib/meetings";
+import {
+  cacheKeys,
+  getCachedData,
+  invalidateMeetingCaches,
+  setCachedData,
+} from "@/lib/cache";
 import { CreateMeetingSchema, ListMeetingsQuerySchema } from "@/types/meetings";
 import { ValidationError } from "@/types/errors";
 import type { AuthContext } from "@/types/auth";
@@ -22,6 +28,8 @@ export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
     }
 
     const meeting = await createMeeting(ctx.userId, parsed.data);
+    await invalidateMeetingCaches(ctx.userId);
+
     return successResponse(meeting, traceId, 201);
   } catch (err) {
     return errorResponse(err, traceId);
@@ -40,11 +48,25 @@ export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
       throw new ValidationError(parsed.error.issues[0].message);
     }
 
+    const cacheKey = cacheKeys.meetings(
+      ctx.userId,
+      req.nextUrl.searchParams.toString()
+    );
+    const cached = await getCachedData<PaginatedData<unknown>>(cacheKey);
+
+    if (cached) {
+      return successResponse(cached, traceId);
+    }
+
     const { items, nextCursor } = await listMeetings(ctx.userId, parsed.data);
 
     const data: PaginatedData<(typeof items)[number]> = {
-        items, nextCursor,
+      items,
+      nextCursor,
     };
+
+    await setCachedData(cacheKey, data);
+
     return successResponse(data, traceId);
   } catch (err) {
     return errorResponse(err, traceId);

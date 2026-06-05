@@ -1,26 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-import { AppError, InternalError } from "@/types/errors";
-
-// Singleton Redis instance
-// Upstash Redis is HTTP-based — safe for Vercel serverless (no persistent connections)
-let _redis: Redis | null = null;
-
-function getRedis(): Redis {
-  if (!_redis) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    if (!url || !token) {
-      throw new InternalError(
-        "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set"
-      );
-    }
-
-    _redis = new Redis({ url, token });
-  }
-  return _redis;
-}
+import { AppError } from "@/types/errors";
+import { getRedis } from "@/lib/redis";
 
 // Two limiters with different scopes and limits.
 // Sliding window: fairer than fixed window — prevents burst abuse at window boundary.

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withAuth } from "@/middleware/auth";
 import { getTraceId, successResponse, errorResponse } from "@/lib/response";
 import { getMeetingById, updateMeeting, deleteMeeting } from "@/lib/meetings";
+import { invalidateUserReadCaches } from "@/lib/cache";
 import { UpdateMeetingSchema } from "@/types/meetings";
 import { NotFoundError, ValidationError } from "@/types/errors";
 import type { AuthContext } from "@/types/auth";
@@ -46,6 +47,8 @@ export const PATCH = withAuth(
       const meeting = await updateMeeting(id, ctx.userId, parsed.data);
       if (!meeting) throw new NotFoundError("Meeting");
 
+      await invalidateUserReadCaches(ctx.userId);
+
       return successResponse(meeting, traceId);
     } catch (err) {
       return errorResponse(err, traceId);
@@ -64,6 +67,8 @@ export const DELETE = withAuth(
 
       const deleted = await deleteMeeting(id, ctx.userId);
       if (!deleted) throw new NotFoundError("Meeting");
+
+      await invalidateUserReadCaches(ctx.userId);
 
       return successResponse({ id, deleted: true }, traceId);
     } catch (err) {

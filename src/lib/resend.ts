@@ -1,7 +1,22 @@
 import { Resend } from "resend";
 import type { ActionItemStatus } from "@/generated/prisma/client";
+import { InternalError } from "@/types/errors";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | null = null;
+
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    throw new InternalError("RESEND_API_KEY must be set");
+  }
+
+  if (!resend) {
+    resend = new Resend(apiKey);
+  }
+
+  return resend;
+}
 
 export async function sendReminderEmail({
   to,
@@ -20,7 +35,7 @@ export async function sendReminderEmail({
 }) {
   const dueDateLabel = dueDate ? dueDate.toISOString() : "Not provided";
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: process.env.RESEND_FROM!,
     to,
     subject: `Overdue Action Item - ${meetingTitle}`,

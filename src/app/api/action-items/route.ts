@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withAuth } from "@/middleware/auth";
 import type { AuthContext } from "@/types/auth";
 import { successResponse, errorResponse, getTraceId } from "@/lib/response";
+import { cacheKeys, getCachedData, setCachedData } from "@/lib/cache";
 import { ValidationError } from "@/types/errors";
 import prisma from "../../../../prisma/client";
 import { ActionItemStatus } from "@/generated/prisma/client";
@@ -51,6 +52,18 @@ export const GET = withAuth(
       }
 
       const overdueOnly = overdueParam === "true";
+      const cacheKey = cacheKeys.actionItems(
+        auth.userId,
+        searchParams.toString()
+      );
+      const cached = await getCachedData<{
+        items: unknown[];
+        nextCursor: string | null;
+      }>(cacheKey);
+
+      if (cached) {
+        return successResponse(cached, traceId);
+      }
 
       // --- build where clause ---
       const where = {
@@ -107,13 +120,14 @@ export const GET = withAuth(
         nextCursor = nextItem!.id;
       }
 
-      return successResponse(
-        {
-          items,
-          nextCursor,
-        },
-        traceId
-      );
+      const data = {
+        items,
+        nextCursor,
+      };
+
+      await setCachedData(cacheKey, data);
+
+      return successResponse(data, traceId);
     } catch (err) {
       return errorResponse(err, traceId);
     }

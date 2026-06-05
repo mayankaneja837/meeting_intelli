@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withAuth } from "@/middleware/auth";
 import type { AuthContext } from "@/types/auth";
 import { successResponse, errorResponse, getTraceId } from "@/lib/response";
+import { invalidateActionItemCaches } from "@/lib/cache";
 import { NotFoundError, ValidationError } from "@/types/errors";
 import prisma from "../../../../../../prisma/client";
 import { ActionItemStatus } from "@/generated/prisma/client";
@@ -104,6 +105,8 @@ export const PATCH = withAuth(
           updatedAt: true,
         },
       });
+
+      await invalidateActionItemCaches(auth.userId);
 
       return successResponse(updated, traceId);
     } catch (err) {

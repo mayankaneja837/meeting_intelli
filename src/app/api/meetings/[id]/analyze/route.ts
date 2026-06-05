@@ -13,6 +13,7 @@ import { ActionItemStatus } from "@/generated/prisma/client";
 import { runMeetingAnalysis } from "@/lib/analysis-service";
 import { checkAnalyzeRateLimit } from "@/lib/rate-limiter";
 import { hashTranscript } from "@/lib/transcript-hash";
+import { invalidateUserReadCaches } from "@/lib/cache";
 import type { AuthContext } from "@/types/auth";
 
 async function analyzeHandler(
@@ -238,6 +239,8 @@ async function analyzeHandler(
       },
       orderBy: { createdAt: "asc" },
     });
+
+    await invalidateUserReadCaches(authCtx.userId);
 
     // ── 7. Respond ───────────────────────────────────────────────────────
     return successResponse(
