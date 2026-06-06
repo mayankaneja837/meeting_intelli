@@ -131,6 +131,25 @@ export const openApiSpec = {
           timestamp: { type: "string", example: "00:00:20" },
         },
       },
+      Citation: {
+        type: "object",
+        required: ["timestamp"],
+        properties: {
+          timestamp: { type: "string", example: "00:00:20" },
+        },
+      },
+      CitedInsight: {
+        type: "object",
+        required: ["text", "citations"],
+        properties: {
+          text: { type: "string", example: "The team agreed to launch next Friday." },
+          citations: {
+            type: "array",
+            minItems: 1,
+            items: { $ref: "#/components/schemas/Citation" },
+          },
+        },
+      },
       MeetingAnalysis: {
         type: "object",
         required: ["summary", "decisions", "followUps", "transcriptHash", "createdAt", "updatedAt"],
@@ -139,15 +158,15 @@ export const openApiSpec = {
           meetingId: { type: "string" },
           summary: {
             type: "array",
-            items: { type: "string" },
+            items: { $ref: "#/components/schemas/CitedInsight" },
           },
           decisions: {
             type: "array",
-            items: { type: "string" },
+            items: { $ref: "#/components/schemas/CitedInsight" },
           },
           followUps: {
             type: "array",
-            items: { type: "string" },
+            items: { $ref: "#/components/schemas/CitedInsight" },
           },
           transcriptHash: { type: "string" },
           createdAt: { type: "string", format: "date-time" },
@@ -252,6 +271,22 @@ export const openApiSpec = {
           status: {
             type: "string",
             enum: ["PENDING", "IN_PROGRESS", "COMPLETED"],
+          },
+        },
+      },
+      CreateActionItemRequest: {
+        type: "object",
+        required: ["meetingId", "task", "assignee", "speakerTimestamp"],
+        properties: {
+          meetingId: { type: "string" },
+          task: { type: "string", example: "Prepare release notes" },
+          assignee: { type: "string", example: "Alice" },
+          speakerTimestamp: { type: "string", example: "00:00:20" },
+          dueDate: {
+            type: "string",
+            format: "date-time",
+            nullable: true,
+            example: "2099-06-10T00:00:00Z",
           },
         },
       },
@@ -903,6 +938,8 @@ export const openApiSpec = {
             schema: { type: "string", enum: ["PENDING", "IN_PROGRESS", "COMPLETED"] },
           },
           { name: "overdue", in: "query", schema: { type: "boolean" } },
+          { name: "assignee", in: "query", schema: { type: "string" } },
+          { name: "meetingId", in: "query", schema: { type: "string" } },
           { name: "cursor", in: "query", schema: { type: "string" } },
           { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
         ],
@@ -917,6 +954,55 @@ export const openApiSpec = {
           },
           "401": {
             description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        tags: ["Action Items"],
+        summary: "Create an action item",
+        description:
+          "Creates a manual action item for one of the authenticated user's meetings. speakerTimestamp must match an uploaded transcript segment timestamp for that meeting.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateActionItemRequest" },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Action item created",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiSuccessActionItem" },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid request body",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "404": {
+            description: "Meeting not found",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },

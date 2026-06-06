@@ -10,7 +10,7 @@ The AI flow is implemented in the meeting analysis endpoint:
 POST /api/meetings/:id/analyze
 ```
 
-The endpoint loads the meeting transcript, checks whether the transcript has changed, calls Groq when fresh analysis is needed, validates the response, verifies action item citations, and then persists the analysis and action items.
+The endpoint loads the meeting transcript, checks whether the transcript has changed, calls Groq when fresh analysis is needed, validates the response, verifies citations for summary points, decisions, and follow-ups, verifies action item timestamps, and then persists the analysis and action items.
 
 The AI provider is Groq, using:
 
@@ -46,9 +46,24 @@ The expected response shape is:
 
 ```json
 {
-  "summary": "string",
-  "decisions": ["string"],
-  "followUps": ["string"],
+  "summary": [
+    {
+      "text": "string",
+      "citations": [{ "timestamp": "HH:MM:SS" }]
+    }
+  ],
+  "decisions": [
+    {
+      "text": "string",
+      "citations": [{ "timestamp": "HH:MM:SS" }]
+    }
+  ],
+  "followUps": [
+    {
+      "text": "string",
+      "citations": [{ "timestamp": "HH:MM:SS" }]
+    }
+  ],
   "actionItems": [
     {
       "assignee": "string",
@@ -98,23 +113,24 @@ This format makes timestamps visually explicit and gives the model a clear sourc
 
 ## Citation Strategy
 
-The assignment requires generated insights to be grounded in the transcript. In this implementation, action item grounding is enforced through transcript timestamps.
+The assignment requires generated insights to be grounded in the transcript. In this implementation, every generated summary point, decision, and follow-up includes transcript timestamp citations. Action items keep their existing `speakerTimestamp` grounding.
 
-Each action item returned by the model must include:
+Each summary point, decision, and follow-up returned by the model must include:
 
 ```json
 {
-  "speakerTimestamp": "00:00:20"
+  "text": "Team plans to launch next Friday.",
+  "citations": [{ "timestamp": "00:00:20" }]
 }
 ```
 
-That timestamp is treated as the citation for the transcript segment where the action item was mentioned.
+Action items use `speakerTimestamp` as before. That field is used for stable database matching and grounding verification.
 
-The application builds a `Set` of valid transcript timestamps from the stored transcript segments. After Groq returns output, each action item's `speakerTimestamp` is checked against that set.
+The application builds a `Set` of valid transcript timestamps from the stored transcript segments. After Groq returns output, every summary/decision/follow-up citation timestamp and every action item `speakerTimestamp` is checked against that set.
 
-If the timestamp exists, the action item is accepted.
+If the cited timestamps exist, the generated insight is accepted.
 
-If the timestamp does not exist, the action item is dropped and not saved.
+If any cited timestamp does not exist, the generated insight is dropped and not saved.
 
 This citation verification is implemented in:
 
@@ -165,9 +181,9 @@ The response must pass a Zod schema before it can be used. If the model returns 
 
 ### 5. Citation Verification
 
-Even if the model returns valid JSON, action items are not trusted immediately. The application verifies that each action item's `speakerTimestamp` exists in the original transcript.
+Even if the model returns valid JSON, generated content is not trusted immediately. The application verifies that each summary/decision/follow-up citation timestamp and each action item `speakerTimestamp` exists in the original transcript.
 
-Any action item with a hallucinated timestamp is dropped before persistence.
+Any summary point, decision, follow-up, or action item with a hallucinated timestamp is dropped before persistence.
 
 ### 6. Transcript Hash Gate
 
@@ -184,19 +200,20 @@ The output validation pipeline is:
 3. Parse the response as JSON.
 4. Validate the parsed JSON with Zod.
 5. Build a set of real transcript timestamps.
-6. Verify each action item's `speakerTimestamp`.
-7. Drop invalid action items.
-8. Return only validated, citation-verified action items to the route.
+6. Verify citation timestamps for summary points, decisions, and follow-ups, plus `speakerTimestamp` values for action items.
+7. Drop invalid generated items.
+8. Return only validated, citation-verified generated content to the route.
 9. Persist analysis and action items in the database.
 
 ### Zod Schema Validation
 
 The Zod schema validates:
 
-- `summary` is a non-trivial string.
-- `decisions` is an array of strings.
-- `followUps` is an array of strings.
+- `summary` is an array of cited insight objects.
+- `decisions` is an array of cited insight objects.
+- `followUps` is an array of cited insight objects.
 - `actionItems` is an array of structured objects.
+- every cited insight includes non-empty `text` and at least one citation.
 - `assignee` is not empty.
 - `task` is descriptive enough.
 - `speakerTimestamp` matches `HH:MM:SS`.
@@ -237,12 +254,6 @@ AI-specific failures are returned as application errors:
 These errors are wrapped in the standard API error envelope with `success: false`, `traceId`, and `error`.
 
 ## Known Limitations
-
-### Summary, Decisions, and Follow-Ups Are Prompt-Grounded but Not Independently Citation-Verified
-
-Action items are citation-verified against transcript timestamps. Summary, decisions, and follow-ups are constrained by the prompt and schema, but they are not currently verified sentence-by-sentence against transcript citations.
-
-A stronger version would require each summary point, decision, and follow-up to include citation timestamps and then verify those timestamps the same way action items are verified.
 
 ### Due Date Parsing Depends on the Model
 

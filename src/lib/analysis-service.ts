@@ -2,7 +2,7 @@ import type { TranscriptSegment } from "@/generated/prisma/client";
 import { getGroqClient, GROQ_MODEL, GROQ_TEMPERATURE, GROQ_MAX_TOKENS } from "./groq";
 import { AnalysisResponseSchema, type AnalysisResponse } from "./analysis-schema";
 import { buildSystemPrompt, buildUserPrompt, buildTimestampSet } from "./prompt";
-import { verifyCitations, type CitationVerificationResult } from "./citation-verifier";
+import { verifyAnalysisCitations, type CitationVerificationResult } from "./citation-verifier";
 import { AppError} from "@/types/errors";
 
 export interface AnalysisServiceResult {
@@ -99,22 +99,22 @@ export async function runMeetingAnalysis(
 
   // ── Step 4: Citation verification ───────────────────────────────────────
   const timestampSet = buildTimestampSet(segments);
-  const citations = verifyCitations(parsed.actionItems, timestampSet);
+  const citations = verifyAnalysisCitations(parsed, timestampSet);
 
   if (citations.dropped.length > 0) {
     console.warn(
-      `[Analysis] Citation verification dropped ${citations.dropped.length} action item(s):`,
-      citations.dropped.map((d) => `"${d.actionItem.task}" — ${d.reason}`)
+      `[Analysis] Citation verification dropped ${citations.dropped.length} generated item(s):`,
+      citations.dropped.map((d) => `${d.field}: "${d.text}" — ${d.reason}`)
     );
   }
 
-  // Replace actionItems in parsed with only the citation-verified ones
-  parsed.actionItems = citations.valid;
+  const verifiedParsed = citations.parsed;
 
   return {
-    parsed,
+    parsed: verifiedParsed,
     citations,
-    droppedCount: citations.dropped.length,
-    validActionItemCount: citations.valid.length,
+    droppedCount: citations.dropped.filter((item) => item.field === "actionItems")
+      .length,
+    validActionItemCount: verifiedParsed.actionItems.length,
   };
 }

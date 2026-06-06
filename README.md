@@ -19,6 +19,7 @@ It also consists of unit tests to test indiviual features
 - Upstash rate limiting for analysis requests
 - Swagger/OpenAPI documentation
 - Public health and evaluation endpoints
+- CORS headers enabled for API routes and health checks
 - Bun unit tests
 - Docker support
 
@@ -242,6 +243,16 @@ curl "$BASE_URL/api/auth/me" \
 
 ### Create Meeting
 
+Dummy meeting request body format:
+
+```json
+{
+  "title": "Sprint Planning",
+  "participants": ["alice@example.com", "bob@example.com"],
+  "meetingDate": "2099-06-05T10:00:00Z"
+}
+```
+
 ```bash
 curl -X POST "$BASE_URL/api/meetings" \
   -H "Authorization: Bearer $TOKEN" \
@@ -249,11 +260,32 @@ curl -X POST "$BASE_URL/api/meetings" \
   -d '{
     "title": "Sprint Planning",
     "participants": ["alice@example.com", "bob@example.com"],
-    "meetingDate": "2026-06-05T10:00:00Z"
+    "meetingDate": "2099-06-05T10:00:00Z"
   }'
 ```
 
 ### Upload Transcript
+
+Transcript upload request body format:
+
+```json
+{
+  "segments": [
+    {
+      "speaker": "Alice",
+      "text": "Meeting transcript text goes here.",
+      "timestamp": "00:00:10"
+    },
+    {
+      "speaker": "Bob",
+      "text": "Another transcript segment goes here.",
+      "timestamp": "00:00:55"
+    }
+  ]
+}
+```
+
+Each segment should include `speaker`, `text`, and `timestamp`; timestamps are later used as grounding citations for AI analysis.
 
 ```bash
 MEETING_ID="paste-meeting-id-here"
@@ -264,14 +296,14 @@ curl -X POST "$BASE_URL/api/meetings/$MEETING_ID/transcript" \
   -d '{
     "segments": [
       {
-        "timestamp": "00:00:10",
-        "speaker": "Mayank",
-        "text": "Alice will prepare the release notes by June 1st."
+        "speaker": "Alice",
+        "text": "Meeting transcript text goes here.",
+        "timestamp": "00:00:10"
       },
       {
-        "timestamp": "00:00:25",
         "speaker": "Bob",
-        "text": "I will review the deployment checklist by June 2nd."
+        "text": "Another transcript segment goes here.",
+        "timestamp": "00:00:55"
       }
     ]
   }'
@@ -300,12 +332,36 @@ curl "$BASE_URL/api/action-items?status=PENDING" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Filter by assignee or meeting:
+
+```bash
+curl "$BASE_URL/api/action-items?assignee=Bob%20Smith&meetingId=$MEETING_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 Filter to overdue items:
 
 ```bash
 curl "$BASE_URL/api/action-items?overdue=true" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+### Create Action Item
+
+```bash
+curl -X POST "$BASE_URL/api/action-items" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "meetingId": "paste-meeting-id-here",
+    "task": "Prepare release notes",
+    "assignee": "Alice",
+    "speakerTimestamp": "00:00:20",
+    "dueDate": "2099-06-10T00:00:00Z"
+  }'
+```
+
+`speakerTimestamp` must match a timestamp from an uploaded transcript segment for that meeting.
 
 ### Update Action Item Status
 
@@ -372,7 +428,7 @@ Upstash Redis is used for two backend concerns:
 - Rate limiting on `POST /api/meetings/{id}/analyze`
 - Short-lived caching for `GET /api/meetings` and `GET /api/action-items`
 
-The list caches are user-scoped and query-scoped. Meeting list cache entries are invalidated when meetings are created, updated, deleted, or transcript segments are uploaded. Action item cache entries are invalidated when analysis creates or updates action items, when meetings are deleted, or when an action item status is changed.
+The list caches are user-scoped and query-scoped. Meeting list cache entries are invalidated when meetings are created, updated, deleted, or transcript segments are uploaded. Action item cache entries are invalidated when analysis creates or updates action items, when manual action items are created, when meetings are deleted, or when an action item status is changed.
 
 ## Deployment Instructions
 
@@ -435,7 +491,7 @@ https://github.com/mayankaneja837/meeting_intelli
 
 ## Assignment Summary
 
-This project implements the Meeting Intelligence Service described in the assignment. Users can register, log in with JWT authentication, create meetings, upload transcript segments, and run AI-powered meeting analysis through Groq. The analysis flow is designed to stay grounded in transcript content: generated action items are checked against real transcript timestamps, and transcript hashing prevents unnecessary repeated analysis when meeting content has not changed.
+This project implements the Meeting Intelligence Service described in the assignment. Users can register, log in with JWT authentication, create meetings, upload transcript segments, and run AI-powered meeting analysis through Groq. The analysis flow is designed to stay grounded in transcript content: generated summary points, decisions, and follow-ups include transcript timestamp citations that are checked against real transcript timestamps, action items are checked against real transcript timestamps through `speakerTimestamp`, and transcript hashing prevents unnecessary repeated analysis when meeting content has not changed.
 
 The application stores meetings, transcript segments, analyses, action items, and reminder history in PostgreSQL through Prisma. Action items can be listed, filtered, marked by status, and queried when overdue. A Vercel Cron-compatible reminder endpoint runs daily, finds overdue incomplete action items, sends reminder emails to the meeting creator through Resend, and records the reminder outcome.
 
@@ -451,9 +507,9 @@ Next, the evaluator creates a meeting with `POST /api/meetings`. The meeting sto
 
 After creating the meeting, the evaluator uploads transcript segments with `POST /api/meetings/{id}/transcript`. Each segment contains a `timestamp`, `speaker`, and `text`. These transcript timestamps become the grounding source for AI-generated insights.
 
-The evaluator then calls `POST /api/meetings/{id}/analyze`. The service fetches the meeting transcript, checks the transcript hash, and either returns cached analysis or calls Groq for a fresh analysis. The AI output is validated, and action items are verified against real transcript timestamps before being stored. This prevents unsupported action items from being saved.
+The evaluator then calls `POST /api/meetings/{id}/analyze`. The service fetches the meeting transcript, checks the transcript hash, and either returns cached analysis or calls Groq for a fresh analysis. The AI output is validated, and citations for summary points, decisions, and follow-ups are verified against real transcript timestamps before being stored. Action items continue to be verified through `speakerTimestamp`. This prevents unsupported generated items from being saved.
 
-Once analysis is complete, the evaluator can call `GET /api/action-items` to list generated action items, filter by status with `?status=PENDING`, or filter overdue items with `?overdue=true`. The dedicated `GET /api/action-items/overdue` endpoint returns overdue items with `daysOverdue`.
+Once analysis is complete, the evaluator can call `GET /api/action-items` to list generated action items, filter by status with `?status=PENDING`, filter by assignee with `?assignee=Bob%20Smith`, filter by meeting with `?meetingId=...`, or filter overdue items with `?overdue=true`. Manual action items can also be created with `POST /api/action-items`. The dedicated `GET /api/action-items/overdue` endpoint returns overdue items with `daysOverdue`.
 
 The evaluator can update only an action item's status through `PATCH /api/action-items/{id}/status`. This endpoint accepts only a `status` value and enforces the status transition rules.
 

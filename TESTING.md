@@ -79,11 +79,13 @@ These tests verify the transcript hash gate used by the AI analysis flow.
 
 File: `src/lib/__tests__/citation-verifier.test.ts`
 
-These tests verify the grounding step for AI-generated action items.
+These tests verify the grounding step for AI-generated insights and action items.
 
-- Action items with a timestamp that exists in the transcript are kept.
+- Summary points, decisions, and follow-ups with citation timestamps that exist in the transcript are kept.
+- Action items with a `speakerTimestamp` that exists in the transcript are kept.
 - Action items with hallucinated or missing transcript timestamps are dropped.
-- Dropped action items include a reason explaining why they were rejected.
+- Decisions and follow-ups with hallucinated citation timestamps are dropped.
+- Dropped generated items include a reason explaining why they were rejected.
 
 ### Action Item Logic
 
@@ -107,6 +109,8 @@ These tests verify that the OpenAPI specification reflects the real API surface.
 - The meeting PATCH endpoint is documented.
 - The Vercel cron reminder endpoint is documented as `GET`.
 - The action item status update schema is status-only.
+- Manual action item creation is documented.
+- Action item list filters for `assignee` and `meetingId` are documented.
 - Success responses include JSON response body schemas instead of vague descriptions.
 
 ## Edge Cases Considered
@@ -164,6 +168,6 @@ Alongside unit tests, the following flows were manually exercised during develop
 Latest local result:
 
 ```text
-23 pass
+29 pass
 0 fail
 ```

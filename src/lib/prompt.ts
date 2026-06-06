@@ -16,9 +16,24 @@ You MUST respond with ONLY a valid JSON object — no markdown, no code fences, 
 The JSON must conform exactly to this structure:
 
 {
-  "summary": "string — 2 to 4 sentences summarizing what was discussed",
-  "decisions": ["string — a concrete agreement or conclusion reached", ...],
-  "followUps": ["string — open question or topic needing future discussion", ...],
+  "summary": [
+    {
+      "text": "string — a factual summary point",
+      "citations": [{ "timestamp": "string — EXACT HH:MM:SS timestamp from the transcript supporting this point" }]
+    }
+  ],
+  "decisions": [
+    {
+      "text": "string — a concrete agreement or conclusion reached",
+      "citations": [{ "timestamp": "string — EXACT HH:MM:SS timestamp from the transcript supporting this decision" }]
+    }
+  ],
+  "followUps": [
+    {
+      "text": "string — open question or topic needing future discussion",
+      "citations": [{ "timestamp": "string — EXACT HH:MM:SS timestamp from the transcript supporting this follow-up" }]
+    }
+  ],
   "actionItems": [
     {
       "assignee": "string — name of the person assigned the task",
@@ -31,16 +46,17 @@ The JSON must conform exactly to this structure:
 
 CRITICAL RULES:
 1. speakerTimestamp MUST be copied EXACTLY from the transcript (format: HH:MM:SS). Do not invent or approximate timestamps.
-2. dueDate MUST be null unless a specific deadline was explicitly spoken in the transcript. Do not guess or assume dates.
-3. Resolve explicit relative deadlines using today's date above. For example, "today", "by EOD", or "by 5 PM today" means today's date; "tomorrow" means the next calendar date. Return only YYYY-MM-DD, not a time.
-4. decisions are things that were AGREED UPON — not tasks, not questions.
-5. followUps are UNRESOLVED topics — questions or discussions deferred to a future meeting.
-6. actionItems are ASSIGNED TASKS — work given to a specific person.
-7. Extract both explicit assignments ("Alice, can you...") and implicit commitments ("I will...", "I can...", "I'll...") as action items when the speaker is a real person and the work is concrete.
-8. If one transcript line contains multiple concrete commitments, extract each commitment as a separate action item with the same speakerTimestamp.
-9. Only include action items where a real person is clearly assigned. Ignore vague or unassigned tasks.
-10. Return an empty array [] if there are no items for a field — never omit the field.
-11. If there are no action items in the transcript, return "actionItems": [] — do not invent tasks.`;
+2. Every summary point, decision, and follow-up MUST include at least one citation timestamp copied EXACTLY from the transcript.
+3. dueDate MUST be null unless a specific deadline was explicitly spoken in the transcript. Do not guess or assume dates.
+4. Resolve explicit relative deadlines using today's date above. For example, "today", "by EOD", or "by 5 PM today" means today's date; "tomorrow" means the next calendar date. Return only YYYY-MM-DD, not a time.
+5. decisions are things that were AGREED UPON — not tasks, not questions.
+6. followUps are UNRESOLVED topics — questions or discussions deferred to a future meeting.
+7. actionItems are ASSIGNED TASKS — work given to a specific person.
+8. Extract both explicit assignments ("Alice, can you...") and implicit commitments ("I will...", "I can...", "I'll...") as action items when the speaker is a real person and the work is concrete.
+9. If one transcript line contains multiple concrete commitments, extract each commitment as a separate action item with the same speakerTimestamp.
+10. Only include action items where a real person is clearly assigned. Ignore vague or unassigned tasks.
+11. Return an empty array [] if there are no decisions, followUps, or actionItems — never omit the field.
+12. If there are no action items in the transcript, return "actionItems": [] — do not invent tasks.`;
 }
 
 /**
@@ -72,6 +88,7 @@ ${formattedTranscript}
 
 Remember:
 - speakerTimestamp values must be EXACT timestamps copied from the transcript above (HH:MM:SS format).
+- every generated summary point, decision, and follow-up must include citation timestamps copied from the transcript.
 - Extract implicit commitments such as "I will run a smoke test" as action items.
 - If no action items exist in the transcript, return "actionItems": [].
 - dueDate must be null unless a deadline was explicitly mentioned.`;

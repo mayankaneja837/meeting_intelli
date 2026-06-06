@@ -10,7 +10,7 @@ describe("meeting validation schemas", () => {
   test("validates a minimal create meeting payload and defaults participants", () => {
     const parsed = CreateMeetingSchema.parse({
       title: "Sprint Planning",
-      meetingDate: "2026-06-05T10:00:00Z",
+      meetingDate: "2099-06-05T10:00:00Z",
     });
 
     expect(parsed.participants).toEqual([]);
@@ -20,6 +20,15 @@ describe("meeting validation schemas", () => {
     const parsed = CreateMeetingSchema.safeParse({
       title: "Sprint Planning",
       meetingDate: "tomorrow",
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  test("rejects create meeting dates before today", () => {
+    const parsed = CreateMeetingSchema.safeParse({
+      title: "Sprint Planning",
+      meetingDate: "2000-01-01T10:00:00Z",
     });
 
     expect(parsed.success).toBe(false);

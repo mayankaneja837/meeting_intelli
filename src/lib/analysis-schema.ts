@@ -8,6 +8,19 @@ const TimestampSchema = z
     "Timestamp must be in HH:MM:SS format (e.g. 00:02:34)"
   );
 
+export const CitationSchema = z.object({
+  timestamp: TimestampSchema.describe(
+    "Exact HH:MM:SS timestamp of the transcript segment supporting this insight"
+  ),
+});
+
+export const CitedInsightSchema = z.object({
+  text: z.string().min(5, "Insight text too short"),
+  citations: z
+    .array(CitationSchema)
+    .min(1, "Each generated insight must include at least one citation"),
+});
+
 export const ActionItemSchema = z.object({
   assignee: z
     .string()
@@ -33,20 +46,20 @@ export const ActionItemSchema = z.object({
 
 export const AnalysisResponseSchema = z.object({
   summary: z
-    .string()
-    .min(20, "Summary too short")
-    .describe("2-4 sentence factual summary of what was discussed"),
+    .array(CitedInsightSchema)
+    .min(1, "Summary must include at least one cited summary point")
+    .describe("Cited factual summary points of what was discussed"),
 
   decisions: z
-    .array(z.string().min(5))
+    .array(CitedInsightSchema)
     .describe(
-      "List of concrete agreements or conclusions reached during the meeting — things that were debated and settled"
+      "Cited concrete agreements or conclusions reached during the meeting — things that were debated and settled"
     ),
 
   followUps: z
-    .array(z.string().min(5))
+    .array(CitedInsightSchema)
     .describe(
-      "Open questions or topics that need further discussion in a future meeting"
+      "Cited open questions or topics that need further discussion in a future meeting"
     ),
 
   actionItems: z
@@ -58,3 +71,4 @@ export const AnalysisResponseSchema = z.object({
 
 export type AnalysisResponse = z.infer<typeof AnalysisResponseSchema>;
 export type ActionItemParsed = z.infer<typeof ActionItemSchema>;
+export type CitedInsightParsed = z.infer<typeof CitedInsightSchema>;

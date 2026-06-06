@@ -19,6 +19,27 @@ describe("openApiSpec", () => {
     expect(Object.keys(schema.properties)).toEqual(["status"]);
   });
 
+  test("documents manual action item creation", () => {
+    expect(openApiSpec.paths["/api/action-items"].post).toBeDefined();
+    expect(
+      openApiSpec.paths["/api/action-items"].post.requestBody.content[
+        "application/json"
+      ].schema
+    ).toEqual({
+      $ref: "#/components/schemas/CreateActionItemRequest",
+    });
+  });
+
+  test("documents action item assignment and meeting filters", () => {
+    const parameters =
+      openApiSpec.paths["/api/action-items"].get.parameters.map(
+        (parameter) => parameter.name
+      );
+
+    expect(parameters).toContain("assignee");
+    expect(parameters).toContain("meetingId");
+  });
+
   test("uses response bodies for success responses", () => {
     const listMeetingsResponse =
       openApiSpec.paths["/api/meetings"].get.responses["200"];

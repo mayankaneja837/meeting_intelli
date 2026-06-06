@@ -1,12 +1,32 @@
 import { z } from "zod";
 
+function isTodayOrFutureDate(value: string) {
+  const inputDate = new Date(value);
+  const today = new Date();
+  const inputUtcDay = Date.UTC(
+    inputDate.getUTCFullYear(),
+    inputDate.getUTCMonth(),
+    inputDate.getUTCDate()
+  );
+  const todayUtcDay = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  );
+
+  return inputUtcDay >= todayUtcDay;
+}
+
 // ─── Create Meeting ───────────────────────────────────────────────────────────
 
 export const CreateMeetingSchema = z.object({
   title: z.string().min(1, "Title is required").max(255),
   meetingDate: z
     .string({message: "meetingDate is required" })
-    .datetime({ message: "meetingDate must be a valid ISO 8601 datetime" }),
+    .datetime({ message: "meetingDate must be a valid ISO 8601 datetime" })
+    .refine(isTodayOrFutureDate, {
+      message: "meetingDate cannot be earlier than today's date",
+    }),
   participants: z
     .array(z.string().min(1).max(255))
     .max(100, "Too many participants")
